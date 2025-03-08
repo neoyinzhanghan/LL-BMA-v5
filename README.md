@@ -1,6 +1,6 @@
 # LL-BMA-v5
 
-![LL-BMA-v5 Logo](LLBMA/resources/logo_544.png)
+![LL-BMA-v5 Logo](LLBMA/resources/logo_76.png)
 
 **LeukoLocator for Bone Marrow Aspirate Analysis v5**
 
