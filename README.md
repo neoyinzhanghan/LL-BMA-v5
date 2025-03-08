@@ -1,5 +1,7 @@
 # LL-BMA-v5
 
+![LL-BMA-v5 Logo](LLBMA/resources/logo_544.png)
+
 **LeukoLocator for Bone Marrow Aspirate Analysis v5**
 
 A comprehensive pipeline for automated cellular analysis of bone marrow aspirate slides using computer vision and deep learning.
