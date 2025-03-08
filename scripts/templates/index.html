@@ -1,0 +1,1000 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LeukoLocator - Image Viewer</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/2.4.2/openseadragon.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap');
+        
+        :root {
+            --primary: #6741B2;
+            --primary-dark: #270F7E;
+            --accent: #BE98B3;
+            --secondary: #7574C4;
+            --light-bg: #D8D7E5;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Nunito', 'Avenir', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f8fa;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background-color: rgba(216, 215, 229, 0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .logo {
+            width: 50px;
+            height: 50px;
+            margin-right: 15px;
+        }
+        
+        .app-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        .main-wrapper {
+            display: flex;
+            flex: 1;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background-color: white;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+            position: sticky;
+            top: 80px;
+            height: calc(100vh - 80px);
+            z-index: 90;
+        }
+        
+        .sidebar-collapsed {
+            width: 40px;
+            padding: 20px 10px;
+            overflow: hidden;
+        }
+        
+        .sidebar-collapsed h2, 
+        .sidebar-collapsed .summary-stats, 
+        .sidebar-collapsed .differential-container {
+            opacity: 0;
+            visibility: hidden;
+        }
+        
+        .sidebar-toggle {
+            position: absolute;
+            right: 10px;
+            top: 20px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 30px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 95;
+            transition: transform 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .sidebar-collapsed .sidebar-toggle {
+            transform: rotate(180deg);
+            left: 5px;
+        }
+        
+        .container {
+            flex: 1;
+            padding: 20px;
+            transition: all 0.3s ease;
+            width: calc(100% - 300px);
+        }
+        
+        .container-expanded {
+            width: calc(100% - 40px);
+        }
+        
+        h1, h2, h3 {
+            color: var(--primary-dark);
+        }
+        
+        .image-container {
+            margin-bottom: 40px;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .image-gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .image-item {
+            margin-bottom: 20px;
+            max-width: 300px;
+            cursor: pointer;
+        }
+        
+        .region-image {
+            width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .cell-image {
+            width: 96px;
+            height: 96px;
+            object-fit: cover;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .cell-item {
+            margin-bottom: 20px;
+            max-width: 100px;
+        }
+        
+        button {
+            padding: 8px 15px;
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-family: 'Nunito', 'Avenir', sans-serif;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: var(--primary);
+        }
+        
+        .control-panel {
+            background-color: var(--light-bg);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .section-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--light-bg);
+            padding-bottom: 10px;
+        }
+        
+        .section-title h2 {
+            margin: 0;
+        }
+        
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(39, 15, 126, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .loading-text {
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .logo-container {
+            margin-bottom: 30px;
+        }
+        
+        .spinning-logo {
+            width: 100px;
+            height: 100px;
+            animation: spin 2s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .progress-container {
+            width: 70%;
+            max-width: 500px;
+            background-color: var(--light-bg);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 30px;
+            width: 0%;
+            background-color: var(--accent);
+            text-align: center;
+            line-height: 30px;
+            color: white;
+            font-weight: 600;
+            transition: width 0.3s;
+        }
+        
+        #main-content {
+            display: none;
+        }
+        
+        .toggle-all-btn {
+            background-color: var(--primary);
+            color: white;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        .toggle-all-btn:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .differential-container {
+            margin-bottom: 20px;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        
+        .differential-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .differential-item:last-child {
+            border-bottom: none;
+        }
+        
+        .differential-name {
+            font-weight: 600;
+        }
+        
+        /* Styling for skipped cells text */
+        .skipped-text {
+            color: #e74c3c;
+        }
+        
+        .differential-value {
+            display: flex;
+            align-items: center;
+        }
+        
+        .differential-count {
+            margin-right: 10px;
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+        
+        .differential-percentage {
+            color: var(--secondary);
+        }
+        
+        .bar-container {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        
+        .bar {
+            height: 100%;
+            background-color: var(--primary);
+            border-radius: 10px;
+        }
+        
+        /* Special styling for skipped cells bar */
+        .bar-skipped {
+            background-color: #e74c3c; /* Red color for skipped cells */
+        }
+        
+        .bar-label {
+            font-size: 11px;
+            color: #666;
+            margin-top: 3px;
+            font-style: italic;
+        }
+        
+        .summary-stats {
+            background-color: var(--light-bg);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+        
+        .summary-label {
+            font-weight: 600;
+        }
+        
+        .summary-value {
+            color: var(--primary-dark);
+            font-weight: 700;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+        }
+        
+        .path-display {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            word-break: break-all;
+            font-family: monospace;
+        }
+        
+        .copy-btn {
+            background-color: var(--primary);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .copy-btn:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .copy-message {
+            color: green;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        /* Whole Slide Image viewer styles */
+        #wsi-container {
+            width: 100%;
+            height: 600px;
+            margin-bottom: 20px;
+        }
+        
+        .wsi-viewer {
+            width: 100%;
+            height: 100%;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        /* New styles for WSI controls */
+        .wsi-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        
+        .wsi-toggle-btn {
+            background-color: var(--primary);
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .wsi-toggle-btn:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .wsi-toggle-btn.active {
+            background-color: var(--accent);
+        }
+        
+        /* Switch styles */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #2ecc71;
+        }
+        
+        input:focus + .slider {
+            box-shadow: 0 0 1px #2ecc71;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        .switch-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .sidebar-note {
+            font-size: 12px;
+            font-style: italic;
+            color: #666;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dashed #ccc;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading overlay -->
+    <div id="loading-overlay">
+        <div class="logo-container">
+            <img src="/logo" class="spinning-logo" alt="LeukoLocator Logo">
+        </div>
+        <div class="loading-text">Loading LeukoLocator...</div>
+        <div class="progress-container">
+            <div id="progress-bar" class="progress-bar">0%</div>
+        </div>
+    </div>
+
+    <!-- Path display modal -->
+    <div id="path-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Image Path</h2>
+            <div id="path-display" class="path-display"></div>
+            <button id="copy-path-btn" class="copy-btn">Copy to Clipboard</button>
+            <div id="copy-message" class="copy-message">Path copied to clipboard!</div>
+        </div>
+    </div>
+
+    <!-- Main content (hidden initially) -->
+    <div id="main-content">
+        <header class="header">
+            <img src="/logo" alt="LeukoLocator Logo" class="logo">
+            <h1 class="app-title">LeukoLocator</h1>
+        </header>
+        
+        <div class="main-wrapper">
+            <!-- Sidebar with differential counts -->
+            <div id="sidebar" class="sidebar">
+                <button id="sidebar-toggle" class="sidebar-toggle">◀</button>
+                <h2>Analysis Summary</h2>
+                
+                <!-- Summary statistics -->
+                <div class="summary-stats">
+                    <div class="summary-item">
+                        <span class="summary-label">Total Regions:</span>
+                        <span class="summary-value">{{ differential_data.regions_count }}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Total Objects Detected:</span>
+                        <span class="summary-value">{{ differential_data.total }}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Cells in Differential:</span>
+                        <span class="summary-value">{{ differential_data.total_for_differential }}</span>
+                    </div>
+                </div>
+                
+                <h2>Differential Counts</h2>
+                
+                <div class="differential-container">
+                    {% for group_name, data in differential_data.groups.items() %}
+                    {% if group_name == 'Skipped Cells & Artifacts' %}
+                    <div class="differential-item">
+                        <div class="skipped-text" style="width: 100%;">
+                            Found {{ data.count }} Skipped cells & artifacts, {{ data.percentage }}% of all objects
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="differential-item">
+                        <div class="differential-name">{{ group_name|capitalize }}</div>
+                        <div class="differential-value">
+                            <span class="differential-count">{{ data.count }}</span>
+                            <span class="differential-percentage">
+                                {% if data.is_na %}
+                                    ({{ data.percentage }})
+                                {% else %}
+                                    ({{ data.percentage }}%)
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    {% if not data.is_na %}
+                    <div class="bar-container">
+                        <div class="bar" style="width: {{ data.percentage }}%;"></div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    {% endfor %}
+                    
+                    <!-- Note about skipped cells -->
+                    <div class="sidebar-note">
+                        * Skipped cells & artifacts are not included in the differential count calculations
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main content container -->
+            <div id="content-container" class="container">
+                <h1>Slide Analysis Results</h1>
+                
+                <!-- Whole Slide Image Section -->
+                {% if has_wsi %}
+                <div class="image-container">
+                    <div class="section-title">
+                        <h2>Whole Slide Image</h2>
+                    </div>
+                    
+                    <!-- WSI Controls - Added annotation toggle switch -->
+                    <div class="control-panel">
+                        <h3 style="margin-top: 0;">Slide View Controls:</h3>
+                        <div class="wsi-controls">
+                            <div class="switch-label">
+                                <span>Show Annotations:</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="annotation-toggle" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="wsi-container">
+                        <div id="openseadragon-viewer" class="wsi-viewer"></div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Display Regions Section -->
+                <div class="image-container">
+                    <div class="section-title">
+                        <h2>Focus Regions</h2>
+                    </div>
+                    
+                    <div class="control-panel">
+                        <h3 style="margin-top: 0;">Annotation Controls:</h3>
+                        <p><strong>Keyboard Shortcut:</strong> Press 'A' key to toggle between annotated and unannotated versions of all images</p>
+                        <p><strong>Individual Images:</strong> Use the toggle button below each image to switch that specific image</p>
+                        <p><strong>View Path:</strong> Click on any image to view and copy its full path</p>
+                        <button id="toggle-all-btn" class="toggle-all-btn">Toggle Region Annotations</button>
+                    </div>
+                    
+                    <div class="image-gallery">
+                        {% for image in image_paths.regions.unannotated %}
+                            {% if image in image_paths.regions.annotated %}
+                            <div class="image-item" id="region-{{ loop.index }}">
+                                <img src="/get_image/selected_focus_regions/high_mag_unannotated/{{ image }}" 
+                                     data-unannotated="/get_image/selected_focus_regions/high_mag_unannotated/{{ image }}"
+                                     data-annotated="/get_image/selected_focus_regions/high_mag_annotated/{{ image }}"
+                                     data-state="unannotated"
+                                     data-path="{{ result_folder }}/selected_focus_regions/high_mag_unannotated/{{ image }}"
+                                     data-annotated-path="{{ result_folder }}/selected_focus_regions/high_mag_annotated/{{ image }}"
+                                     class="preload-image region-image"
+                                     onclick="showImagePath(this)">
+                                <button onclick="toggleAnnotation('region-{{ loop.index }}')">Toggle Slide Annotation</button>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Display Cells Section -->
+                {% for cell_type, images in image_paths.cells.items() %}
+                <div class="image-container">
+                    <div class="section-title">
+                        <h2>{{ cell_type }}</h2>
+                    </div>
+                    <div class="image-gallery">
+                        {% for image in images %}
+                        <div class="image-item cell-item">
+                            <img src="/get_image/selected_cells/{{ cell_type.split(' - ')[0] }}/{{ image }}" 
+                                 class="preload-image cell-image"
+                                 data-path="{{ result_folder }}/selected_cells/{{ cell_type.split(' - ')[0] }}/{{ image }}"
+                                 onclick="showImagePath(this)">
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get all images that need to be preloaded
+            const imagesToPreload = document.querySelectorAll('.preload-image');
+            const totalImages = imagesToPreload.length;
+            const progressBar = document.getElementById('progress-bar');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const mainContent = document.getElementById('main-content');
+            
+            let loadedImages = 0;
+            
+            // Initialize OpenSeadragon if whole slide image is available
+            {% if has_wsi %}
+            initializeViewer(true); // Initialize with annotations on by default
+            {% endif %}
+            
+            // No images to preload case
+            if (totalImages === 0) {
+                progressBar.style.width = '100%';
+                progressBar.textContent = '100%';
+                
+                // Hide loading overlay and show content after a short delay
+                setTimeout(function() {
+                    loadingOverlay.style.display = 'none';
+                    mainContent.style.display = 'block';
+                }, 500);
+                return;
+            }
+            
+            // Preload each image
+            imagesToPreload.forEach(function(img) {
+                // Create a new image object to preload
+                const preloadImg = new Image();
+                
+                preloadImg.onload = function() {
+                    loadedImages++;
+                    
+                    // Update progress bar
+                    const percentComplete = Math.round((loadedImages / totalImages) * 100);
+                    progressBar.style.width = percentComplete + '%';
+                    progressBar.textContent = percentComplete + '%';
+                    
+                    // If all images are loaded
+                    if (loadedImages === totalImages) {
+                        // Hide loading overlay and show content after a short delay
+                        setTimeout(function() {
+                            loadingOverlay.style.display = 'none';
+                            mainContent.style.display = 'block';
+                        }, 500);
+                    }
+                };
+                
+                preloadImg.onerror = function() {
+                    loadedImages++;
+                    console.error('Failed to load image:', img.src);
+                    
+                    // Update progress bar even on error
+                    const percentComplete = Math.round((loadedImages / totalImages) * 100);
+                    progressBar.style.width = percentComplete + '%';
+                    progressBar.textContent = percentComplete + '%';
+                    
+                    // If all images are loaded (or failed)
+                    if (loadedImages === totalImages) {
+                        // Hide loading overlay and show content after a short delay
+                        setTimeout(function() {
+                            loadingOverlay.style.display = 'none';
+                            mainContent.style.display = 'block';
+                        }, 500);
+                    }
+                };
+                
+                // Start loading the image
+                preloadImg.src = img.src;
+                
+                // For annotated images, also preload the annotated version
+                if (img.hasAttribute('data-annotated')) {
+                    const preloadAnnotated = new Image();
+                    preloadAnnotated.src = img.getAttribute('data-annotated');
+                }
+            });
+            
+            // Set up modal close button
+            document.querySelector('.close').addEventListener('click', function() {
+                document.getElementById('path-modal').style.display = 'none';
+            });
+            
+            // Close modal when clicking outside of it
+            window.addEventListener('click', function(event) {
+                const modal = document.getElementById('path-modal');
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+            
+            // Set up copy button
+            document.getElementById('copy-path-btn').addEventListener('click', function() {
+                const pathText = document.getElementById('path-display').textContent;
+                navigator.clipboard.writeText(pathText).then(function() {
+                    const copyMessage = document.getElementById('copy-message');
+                    copyMessage.style.display = 'block';
+                    setTimeout(function() {
+                        copyMessage.style.display = 'none';
+                    }, 2000);
+                });
+            });
+            
+            // Toggle sidebar
+            document.getElementById('sidebar-toggle').addEventListener('click', function() {
+                const sidebar = document.getElementById('sidebar');
+                const container = document.getElementById('content-container');
+                const toggleButton = document.getElementById('sidebar-toggle');
+                
+                if (sidebar.classList.contains('sidebar-collapsed')) {
+                    sidebar.classList.remove('sidebar-collapsed');
+                    container.classList.remove('container-expanded');
+                    toggleButton.textContent = '◀';
+                } else {
+                    sidebar.classList.add('sidebar-collapsed');
+                    container.classList.add('container-expanded');
+                    toggleButton.textContent = '▶';
+                }
+            });
+            
+            // Toggle All button functionality
+            document.getElementById('toggle-all-btn').addEventListener('click', function() {
+                const visibleImages = document.querySelectorAll('.image-item img[data-state]');
+                
+                // Check if all images are already annotated
+                let allAnnotated = true;
+                visibleImages.forEach(img => {
+                    if (img.getAttribute('data-state') !== 'annotated') {
+                        allAnnotated = false;
+                    }
+                });
+                
+                // If all are annotated, turn off all annotations
+                // If some or none are annotated, turn on all annotations
+                visibleImages.forEach(img => {
+                    const itemId = img.closest('.image-item').id;
+                    const currentState = img.getAttribute('data-state');
+                    
+                    if (allAnnotated) {
+                        // Turn off annotations if all are annotated
+                        if (currentState !== 'unannotated') {
+                            toggleAnnotation(itemId);
+                        }
+                    } else {
+                        // Turn on annotations if some are not annotated
+                        if (currentState !== 'annotated') {
+                            toggleAnnotation(itemId);
+                        }
+                    }
+                });
+            });
+            
+            // Add keyboard shortcut (A) to toggle annotation for the currently visible images
+            document.addEventListener('keydown', function(event) {
+                if (event.key.toLowerCase() === 'a') {
+                    const visibleImages = document.querySelectorAll('.image-item img[data-state]');
+                    visibleImages.forEach(img => {
+                        const itemId = img.closest('.image-item').id;
+                        toggleAnnotation(itemId);
+                    });
+                }
+            });
+            
+            // Setup annotation toggle for WSI viewer
+            {% if has_wsi %}
+            const annotationToggle = document.getElementById('annotation-toggle');
+            annotationToggle.addEventListener('change', function() {
+                // Save current viewer position
+                const viewerPosition = saveViewerPosition();
+                
+                // Reinitialize viewer with new annotation setting
+                initializeViewer(this.checked, viewerPosition);
+            });
+            {% endif %}
+        });
+
+        // Variables to store viewer instance and current state
+        let viewer;
+        let viewerInitialized = false;
+
+        // Function to save current viewer position
+        function saveViewerPosition() {
+            if (!viewer) return null;
+            
+            const viewportCenter = viewer.viewport.getCenter();
+            const zoom = viewer.viewport.getZoom();
+            
+            return {
+                x: viewportCenter.x,
+                y: viewportCenter.y,
+                zoom: zoom
+            };
+        }
+
+        // Function to initialize OpenSeadragon viewer
+        function initializeViewer(showAnnotations = true, restorePosition = null) {
+            fetch('/get_dimensions')
+                .then(response => response.json())
+                .then(dimensions => {
+                    const width = dimensions.width;
+                    const height = dimensions.height;
+                    
+                    // If viewer exists, destroy it first
+                    if (viewer) {
+                        viewer.destroy();
+                    }
+                    
+                    // Create the viewer with the appropriate tile source
+                    viewer = OpenSeadragon({
+                        id: "openseadragon-viewer",
+                        prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/2.4.2/images/",
+                        tileSources: {
+                            width: width,
+                            height: height,
+                            tileSize: 512,
+                            maxLevel: 18,
+                            getTileUrl: function(level, x, y) {
+                                return showAnnotations ? 
+                                    `/annotated_tile_api?level=${level}&x=${x}&y=${y}` : 
+                                    `/tile_api?level=${level}&x=${x}&y=${y}`;
+                            }
+                        },
+                        showNavigator: true,
+                        navigatorPosition: "BOTTOM_RIGHT",
+                        minZoomLevel: 0.5,
+                        zoomPerScroll: 1.5,
+                    });
+                    
+                    // Restore position if provided
+                    if (restorePosition) {
+                        viewer.addOnceHandler('open', function() {
+                            viewer.viewport.panTo(new OpenSeadragon.Point(restorePosition.x, restorePosition.y), true);
+                            viewer.viewport.zoomTo(restorePosition.zoom, null, true);
+                        });
+                    }
+                    
+                    viewerInitialized = true;
+                })
+                .catch(error => console.error("Error fetching slide dimensions:", error));
+        }
+
+        // Function to toggle between annotated and unannotated images
+        function toggleAnnotation(itemId) {
+            const imgElement = document.querySelector(`#${itemId} img`);
+            const currentState = imgElement.getAttribute('data-state');
+            
+            if (currentState === 'unannotated') {
+                imgElement.src = imgElement.getAttribute('data-annotated');
+                imgElement.setAttribute('data-state', 'annotated');
+            } else {
+                imgElement.src = imgElement.getAttribute('data-unannotated');
+                imgElement.setAttribute('data-state', 'unannotated');
+            }
+        }
+        
+        // Function to show image path in modal
+        function showImagePath(imgElement) {
+            event.stopPropagation(); // Prevent triggering other click events
+            
+            const modal = document.getElementById('path-modal');
+            const pathDisplay = document.getElementById('path-display');
+            
+            // Get the appropriate path based on current state
+            let path;
+            if (imgElement.hasAttribute('data-state') && imgElement.getAttribute('data-state') === 'annotated') {
+                path = imgElement.getAttribute('data-annotated-path');
+            } else {
+                path = imgElement.getAttribute('data-path');
+            }
+            
+            // Set the path text and display the modal
+            pathDisplay.textContent = path;
+            modal.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
