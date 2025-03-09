@@ -4,10 +4,21 @@ from pathlib import Path
 
 
 def get_slide_mpp(slide_path):
-    """Get the microns per pixel (resolution)"""
+    """
+    Get the microns per pixel (resolution) from a whole slide image.
+    
+    Args:
+        slide_path (str): Path to the slide file
+        
+    Returns:
+        tuple: (mpp_x, mpp_y, mpp_candidates)
+            - mpp_x (float): Microns per pixel in x direction, or None if not found
+            - mpp_y (float): Microns per pixel in y direction, or None if not found
+            - mpp_candidates (dict): Dictionary of potential MPP-related properties if standard methods fail
+    """
     slide = openslide.OpenSlide(slide_path)
     
-    # Try to get MPP directly
+    # Try to get MPP directly from standard OpenSlide properties
     try:
         mpp_x = float(slide.properties[openslide.PROPERTY_NAME_MPP_X])
         mpp_y = float(slide.properties[openslide.PROPERTY_NAME_MPP_Y])
@@ -16,7 +27,7 @@ def get_slide_mpp(slide_path):
     except (KeyError, ValueError):
         pass
     
-    # Try to calculate from resolution
+    # Try to calculate from resolution information in TIFF properties
     try:
         spacing_x = float(slide.properties['tiff.XResolution'])
         spacing_y = float(slide.properties['tiff.YResolution'])
@@ -46,22 +57,38 @@ def get_slide_mpp(slide_path):
     return None, None, mpp_candidates  # Return None and candidates for manual inspection
 
 class UniversalWSI():
+    """
+    Universal Whole Slide Image handler that supports multiple file formats.
+    
+    This class provides a unified interface for working with different whole slide image
+    formats including .ndpi, .svs, and .dcm files.
+    """
+    
     def __init__(self, wsi_path):
+        """
+        Initialize the UniversalWSI object.
+        
+        Args:
+            wsi_path (str): Path to the whole slide image file
+            
+        Raises:
+            ValueError: If the file extension is not supported
+        """
         self.wsi_path = wsi_path
         self.ext = Path(wsi_path).suffix
-        if self.ext == '.ndpi':
-            self.wsi = openslide.OpenSlide(wsi_path)
-        elif self.ext == '.svs':
-            self.wsi = openslide.OpenSlide(wsi_path)
-        elif self.ext == '.dcm':
+        if self.ext in ['.ndpi', '.svs', '.dcm']:
             self.wsi = openslide.OpenSlide(wsi_path)
         else:
             raise ValueError(f"Unsupported file extension: {self.ext}")
     
     def get_level_0_dimensions(self):
-        if self.ext == '.ndpi':
-            width, height = self.wsi.level_dimensions[0]
-        elif self.ext == '.svs':
+        """
+        Get the dimensions of the whole slide image at level 0 (highest resolution).
+        
+        Returns:
+            tuple: (width, height) in pixels
+        """
+        if self.ext in ['.ndpi', '.svs']:
             width, height = self.wsi.level_dimensions[0]
         elif self.ext == '.dcm':
             width, height = self.wsi.dimensions
@@ -69,7 +96,16 @@ class UniversalWSI():
         return width, height
     
     def get_level_0_mpp(self):
-        """Get the microns per pixel (resolution)"""
+        """
+        Get the microns per pixel (resolution) at level 0.
+        
+        Returns:
+            float: Microns per pixel value
+            
+        Raises:
+            ValueError: If MPP information cannot be found
+            AssertionError: If MPP values in x and y directions are not equal
+        """
         mpp_x, mpp_y, mpp_candidates = get_slide_mpp(self.wsi_path)
         
         if mpp_x is not None and mpp_y is not None:
@@ -79,17 +115,17 @@ class UniversalWSI():
             raise ValueError(f"No MPP found for {self.wsi_path}, check out alternative output {mpp_candidates}")
     
     def read_ground_region(self, TL, tile_shape):
-        if self.ext == '.ndpi':
-            image = self.wsi.read_region(TL, 0, tile_shape)
-            if image.mode == 'RGBA':
-                image = image.convert('RGB')
-            return image
-        elif self.ext == '.svs':
-            image = self.wsi.read_region(TL, 0, tile_shape)
-            if image.mode == 'RGBA':
-                image = image.convert('RGB')
-            return image
-        elif self.ext == '.dcm':
+        """
+        Read a region from the whole slide image at level 0.
+        
+        Args:
+            TL (tuple): Top-left coordinate (x, y) of the region
+            tile_shape (tuple): Shape (width, height) of the region to read
+            
+        Returns:
+            PIL.Image: The extracted region as an RGB image
+        """
+        if self.ext in ['.ndpi', '.svs', '.dcm']:
             image = self.wsi.read_region(TL, 0, tile_shape)
             if image.mode == 'RGBA':
                 image = image.convert('RGB')
@@ -97,6 +133,7 @@ class UniversalWSI():
         
         
 if __name__ == "__main__":
+    """Example usage of the UniversalWSI class with different file formats."""
     svs_path = "/home/neo/Documents/neo/neo_is_slide_tiling_god/23.CFNA.81 A1 H&E _124937.svs"
     ndpi_path = "/home/neo/Documents/neo/neo_is_slide_tiling_god/test.ndpi"
     dcm_path = "/home/neo/Documents/neo/neo_is_slide_tiling_god/ANONJ4JJKJ17J_1_2.dcm"
